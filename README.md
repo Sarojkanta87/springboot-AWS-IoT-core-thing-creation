@@ -57,75 +57,74 @@ Aws config class:
 
 Service class:
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import com.amazonaws.services.iot.model.AttachPolicyRequest;
-import com.amazonaws.services.iot.model.AttachPolicyResult;
-import com.amazonaws.services.iot.model.AttachThingPrincipalRequest;
-import com.amazonaws.services.iot.model.AttachThingPrincipalResult;
-import com.amazonaws.services.iot.model.CertificateStatus;
-import com.amazonaws.services.iot.model.CreateThingRequest;
-import com.amazonaws.services.iot.model.CreateThingResult;
-import com.amazonaws.services.iot.model.DescribeThingRequest;
-import com.amazonaws.services.iot.model.DescribeThingResult;
-import com.amazonaws.services.iot.model.RegisterCertificateRequest;
-import com.amazonaws.services.iot.model.RegisterCertificateResult;
-import com.amazonaws.services.iot.model.ResourceNotFoundException;
+	import org.springframework.beans.factory.annotation.Autowired;
+	import org.springframework.stereotype.Service;
+	import com.amazonaws.services.iot.model.AttachPolicyRequest;
+	import com.amazonaws.services.iot.model.AttachPolicyResult;
+	import com.amazonaws.services.iot.model.AttachThingPrincipalRequest;
+	import com.amazonaws.services.iot.model.AttachThingPrincipalResult;
+	import com.amazonaws.services.iot.model.CertificateStatus;
+	import com.amazonaws.services.iot.model.CreateThingRequest;
+	import com.amazonaws.services.iot.model.CreateThingResult;
+	import com.amazonaws.services.iot.model.DescribeThingRequest;
+	import com.amazonaws.services.iot.model.DescribeThingResult;
+	import com.amazonaws.services.iot.model.RegisterCertificateRequest;
+	import com.amazonaws.services.iot.model.RegisterCertificateResult;
+	import com.amazonaws.services.iot.model.ResourceNotFoundException;
 
-@Service
-public class RegisterService {
+	@Service
+	public class RegisterService {
 
-	@Autowired
-	private AwsConfig iotClient;
+		@Autowired
+		private AwsConfig iotClient;
 
-	public String RegisterDevice() {
+		public String RegisterDevice() {
 
-		// check if thing Already exists
-		if (!describeThing("Unique Id of Device")) {
+			// check if thing Already exists
+			if (!describeThing("Unique Id of Device")) {
 
-			// Thing Creation
-			CreateThingResult response = iotClient.getIotClient()
-					.createThing(new CreateThingRequest().withThingName("Unique Id of Device/Thing"));
+				// Thing Creation
+				CreateThingResult response = iotClient.getIotClient()
+						.createThing(new CreateThingRequest().withThingName("Unique Id of Device/Thing"));
 
-			// Register and activate the Public Key of the device
-			RegisterCertificateResult registerCert = iotClient.getIotClient()
-					.registerCertificate(new RegisterCertificateRequest().withCaCertificatePem("CA Pem as String")
-							.withCertificatePem("Device Public Key in Pem as String").withStatus(CertificateStatus.ACTIVE));
+				// Register and activate the Public Key of the device
+				RegisterCertificateResult registerCert = iotClient.getIotClient()
+						.registerCertificate(new RegisterCertificateRequest().withCaCertificatePem("CA Pem as String")
+								.withCertificatePem("Device Public Key in Pem as String").withStatus(CertificateStatus.ACTIVE));
 
-			// Attach the Cert to the thing
-			AttachThingPrincipalResult attachThingPrincipalResult = iotClient.getIotClient().attachThingPrincipal(
-					new AttachThingPrincipalRequest()
-						.withThingName("Unique Id of Device/Thing").withPrincipal(registerCert.getCertificateArn()));
+				// Attach the Cert to the thing
+				AttachThingPrincipalResult attachThingPrincipalResult = iotClient.getIotClient().attachThingPrincipal(
+						new AttachThingPrincipalRequest()
+							.withThingName("Unique Id of Device/Thing").withPrincipal(registerCert.getCertificateArn()));
 
-			// Attach policies to the thing so it can connect
-			AttachPolicyResult policyResult = iotClient.getIotClient()
-					.attachPolicy(new AttachPolicyRequest()
-						.withPolicyName("policy_that_allow_device_connections").withTarget(registerCert.getCertificateArn()));
+				// Attach policies to the thing so it can connect
+				AttachPolicyResult policyResult = iotClient.getIotClient()
+						.attachPolicy(new AttachPolicyRequest()
+							.withPolicyName("policy_that_allow_device_connections").withTarget(registerCert.getCertificateArn()));
 
-			return "Thing Created Successfully";
+				return "Thing Created Successfully";
+			}	
+
+			// Thing exists
+			return "Thing Already Exists on IoT Console";
+		}
+
+		private boolean describeThing(String thingName) {
+			if (thingName == null) {
+				return false;
+			}
+			try {
+				describeThingResponse(thingName);
+				return true;
+			} catch (ResourceNotFoundException e) {
+				// e.printStackTrace();
+				return false;
+			}
+		}
+
+		private DescribeThingResult describeThingResponse(String thingName) {
+			DescribeThingRequest describeThingRequest = new DescribeThingRequest();
+			describeThingRequest.setThingName(thingName);
+			return iotClient.getIotClient().describeThing(describeThingRequest);
 		}	
-		
-		// Thing exists
-		return "Thing Already Exists on IoT Console";
 	}
-
-	private boolean describeThing(String thingName) {
-		if (thingName == null) {
-			return false;
-		}
-		try {
-			describeThingResponse(thingName);
-			return true;
-		} catch (ResourceNotFoundException e) {
-			// e.printStackTrace();
-			return false;
-		}
-	}
-
-	private DescribeThingResult describeThingResponse(String thingName) {
-		DescribeThingRequest describeThingRequest = new DescribeThingRequest();
-		describeThingRequest.setThingName(thingName);
-		return iotClient.getIotClient().describeThing(describeThingRequest);
-	}
-	
-}
